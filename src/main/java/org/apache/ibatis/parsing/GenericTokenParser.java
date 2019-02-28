@@ -55,16 +55,20 @@ public class GenericTokenParser {
         } else {
           expression.setLength(0);
         }
-        builder.append(src, offset, start - offset);
+        // append the content between offset on start, for example select * from ${tableName}
+        // -> the first foreach: builder is "select * from ", offset is "0", start 14"
+        builder.append(src, offset, start - offset);// sql
         offset = start + openToken.length();
         int end = text.indexOf(closeToken, offset);
         while (end > -1) {
           if (end > offset && src[end - 1] == '\\') {
+            // not special close token. like \# -> first token is '#', but it has special backslash
             // this close token is escaped. remove the backslash and continue.
-            expression.append(src, offset, end - offset - 1).append(closeToken);
-            offset = end + closeToken.length();
-            end = text.indexOf(closeToken, offset);
+            expression.append(src, offset, end - offset - 1).append(closeToken);//the content is belong to expression
+            offset = end + closeToken.length();// let's search close token again beside offset
+            end = text.indexOf(closeToken, offset);// calc
           } else {
+            // we found the close token, need to break foreach
             expression.append(src, offset, end - offset);
             offset = end + closeToken.length();
             break;
@@ -75,6 +79,7 @@ public class GenericTokenParser {
           builder.append(src, start, src.length - start);
           offset = src.length;
         } else {
+          // found close token. replace
           builder.append(handler.handleToken(expression.toString()));
           offset = end + closeToken.length();
         }

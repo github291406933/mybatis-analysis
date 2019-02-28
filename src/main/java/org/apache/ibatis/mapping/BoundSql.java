@@ -35,11 +35,11 @@ import org.apache.ibatis.session.Configuration;
  */
 public class BoundSql {
 
-  private final String sql;
-  private final List<ParameterMapping> parameterMappings;
-  private final Object parameterObject;
-  private final Map<String, Object> additionalParameters;
-  private final MetaObject metaParameters;
+  private final String sql; // 完整的sql语句，可能含有?占位符
+  private final List<ParameterMapping> parameterMappings; //sql中参数集合，parameterMapping集合，如[{property='__frch_itm_0',mode=IN,javaType=Integer},{property...}]
+  private final Object parameterObject;     //  用户传入的参数值，执行sql时
+  private final Map<String, Object> additionalParameters;   //空的hashMap,之后会赋值DynamicContext.bindings，即用户传入的参数parameterObject进行一次封装
+  private final MetaObject metaParameters;    // additionalParameters 对应的MetaObject对象。方便对additionalParameters添加获取参数(值)
 
   public BoundSql(Configuration configuration, String sql, List<ParameterMapping> parameterMappings, Object parameterObject) {
     this.sql = sql;

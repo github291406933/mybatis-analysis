@@ -42,7 +42,13 @@ import java.util.*;
  */
 public class MapperMethod {
 
+  /**
+   * method对应sql的name和sql类型（如select/update等）
+   */
   private final SqlCommand command;
+  /**
+   * mapper接口中对应方法的相关信息，只针对一个method
+   */
   private final MethodSignature method;
 
   public MapperMethod(Class<?> mapperInterface, Method method, Configuration config) {
@@ -54,7 +60,7 @@ public class MapperMethod {
     Object result;
     switch (command.getType()) {
       case INSERT: {
-      Object param = method.convertArgsToSqlCommandParam(args);
+        Object param = method.convertArgsToSqlCommandParam(args);
         result = rowCountResult(sqlSession.insert(command.getName(), param));
         break;
       }
@@ -116,6 +122,7 @@ public class MapperMethod {
     MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(command.getName());
     if (!StatementType.CALLABLE.equals(ms.getStatementType())
         && void.class.equals(ms.getResultMaps().get(0).getType())) {
+      //当使用resultHandler，必须制定ResultMap或ResultTyp
       throw new BindingException("method " + command.getName()
           + " needs either a @ResultMap annotation, a @ResultType annotation,"
           + " or a resultType attribute in XML so a ResultHandler can be used as a parameter.");
@@ -218,15 +225,19 @@ public class MapperMethod {
       final Class<?> declaringClass = method.getDeclaringClass();
       MappedStatement ms = resolveMappedStatement(mapperInterface, methodName, declaringClass,
           configuration);
+      //遍历完后，判断有无找到
       if (ms == null) {
+        //没有找到对应的statement，则需要判断该方法是不是特殊的flush方法，即判断注解是否有Flush注解
         if (method.getAnnotation(Flush.class) != null) {
           name = null;
           type = SqlCommandType.FLUSH;
         } else {
+          //没有Flush注解，则mybatis无法处理该method，需要进行抛异常处理
           throw new BindingException("Invalid bound statement (not found): "
               + mapperInterface.getName() + "." + methodName);
         }
       } else {
+        //找到了，需要拿到对应的name和sql类型
         name = ms.getId();
         type = ms.getSqlCommandType();
         if (type == SqlCommandType.UNKNOWN) {
@@ -245,14 +256,18 @@ public class MapperMethod {
 
     private MappedStatement resolveMappedStatement(Class<?> mapperInterface, String methodName,
         Class<?> declaringClass, Configuration configuration) {
-      String statementId = mapperInterface.getName() + "." + methodName;
-      if (configuration.hasStatement(statementId)) {
+      String statementId = mapperInterface.getName() + "." + methodName;//唯一性
+      if (configuration.hasStatement(statementId)) {//conf...相当于有一个针对 statementId To MappedStatement 的缓存
         return configuration.getMappedStatement(statementId);
       } else if (mapperInterface.equals(declaringClass)) {
+        //传进来的mapper（dao)类，和method所属类是同一个，也就是确保method是在传进来的mapper(dao)类中声明的，而不是在mapper的父类
+        //则没有必要去搜mapper的父类，有无在configuration中缓存，因为method中不是在其父类声明的，父类不会有这个方法。
         return null;
       }
       for (Class<?> superInterface : mapperInterface.getInterfaces()) {
         if (declaringClass.isAssignableFrom(superInterface)) {
+          //methodName对应的method方法真正所属类，是superInterface的父类，即superInterface实现declaringClass，而method方法时再declaringClass中声明的
+          //则检查父类statement有无在configuration中缓存
           MappedStatement ms = resolveMappedStatement(superInterface, methodName,
               declaringClass, configuration);
           if (ms != null) {
@@ -264,6 +279,9 @@ public class MapperMethod {
     }
   }
 
+  /**
+   *
+   */
   public static class MethodSignature {
 
     private final boolean returnsMany;
@@ -273,8 +291,8 @@ public class MapperMethod {
     private final Class<?> returnType;
     private final String mapKey;
     private final Integer resultHandlerIndex;
-    private final Integer rowBoundsIndex;
-    private final ParamNameResolver paramNameResolver;
+    private final Integer rowBoundsIndex;     //RowBounds类型参数的位置，method参数中只能出现一次
+    private final ParamNameResolver paramNameResolver;  //ResultHandler类型参数的位置，method参数中只能出现位置
 
     public MethodSignature(Configuration configuration, Class<?> mapperInterface, Method method) {
       Type resolvedReturnType = TypeParameterResolver.resolveReturnType(method, mapperInterface);

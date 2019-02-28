@@ -75,6 +75,7 @@ public class PreparedStatementHandler extends BaseStatementHandler {
   protected Statement instantiateStatement(Connection connection) throws SQLException {
     String sql = boundSql.getSql();
     if (mappedStatement.getKeyGenerator() instanceof Jdbc3KeyGenerator) {
+      // 需要Insert语句执行完后，将主键设置回参数对象中
       String[] keyColumnNames = mappedStatement.getKeyColumns();
       if (keyColumnNames == null) {
         return connection.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);

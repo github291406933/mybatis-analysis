@@ -71,16 +71,21 @@ public class SqlSourceBuilder extends BaseBuilder {
     private ParameterMapping buildParameterMapping(String content) {
       Map<String, String> propertiesMap = parseParameterMapping(content);
       String property = propertiesMap.get("property");
-      Class<?> propertyType;
+      Class<?> propertyType;  //确定参数名对应的java类型
       if (metaParameters.hasGetter(property)) { // issue #448 get type from additional params
+        // 尝试从用户参数中获取参数名一致的，若有则返回该用户参数对应的类型
         propertyType = metaParameters.getGetterType(property);
       } else if (typeHandlerRegistry.hasTypeHandler(parameterType)) {
+        // 如提供了参数类型，并且typeHandlerRegistry已经注册了
         propertyType = parameterType;
       } else if (JdbcType.CURSOR.name().equals(propertiesMap.get("jdbcType"))) {
+        //
         propertyType = java.sql.ResultSet.class;
       } else if (property == null || Map.class.isAssignableFrom(parameterType)) {
+        // 判断是否是map类型参数
         propertyType = Object.class;
       } else {
+        // 参数可能是一个被封装得Class,从反射中获取
         MetaClass metaClass = MetaClass.forClass(parameterType, configuration.getReflectorFactory());
         if (metaClass.hasGetter(property)) {
           propertyType = metaClass.getGetterType(property);
@@ -118,6 +123,7 @@ public class SqlSourceBuilder extends BaseBuilder {
         }
       }
       if (typeHandlerAlias != null) {
+        //获取真正的typeHandler对象
         builder.typeHandler(resolveTypeHandler(javaType, typeHandlerAlias));
       }
       return builder.build();

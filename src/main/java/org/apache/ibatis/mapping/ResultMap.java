@@ -91,7 +91,7 @@ public class ResultMap {
       resultMap.constructorResultMappings = new ArrayList<ResultMapping>();
       resultMap.propertyResultMappings = new ArrayList<ResultMapping>();
       final List<String> constructorArgNames = new ArrayList<String>();
-      for (ResultMapping resultMapping : resultMap.resultMappings) {
+      for (ResultMapping resultMapping : resultMap.resultMappings) {//对resultMapping 进行分类
         resultMap.hasNestedQueries = resultMap.hasNestedQueries || resultMapping.getNestedQueryId() != null;
         resultMap.hasNestedResultMaps = resultMap.hasNestedResultMaps || (resultMapping.getNestedResultMapId() != null && resultMapping.getResultSet() == null);
         final String column = resultMapping.getColumn();
@@ -125,6 +125,7 @@ public class ResultMap {
         resultMap.idResultMappings.addAll(resultMap.resultMappings);
       }
       if (!constructorArgNames.isEmpty()) {
+        // constructorArgNames 里面放着property属性
         final List<String> actualArgNames = argNamesOfMatchingConstructor(constructorArgNames);
         if (actualArgNames == null) {
           throw new BuilderException("Error in result map '" + resultMap.id
@@ -150,6 +151,12 @@ public class ResultMap {
       return resultMap;
     }
 
+    /**
+     * 判断是否有对应的javaType构造器
+     * 长度、类型、参数名都要对应上
+     * @param constructorArgNames
+     * @return
+     */
     private List<String> argNamesOfMatchingConstructor(List<String> constructorArgNames) {
       Constructor<?>[] constructors = resultMap.type.getDeclaredConstructors();
       for (Constructor<?> constructor : constructors) {
@@ -168,9 +175,10 @@ public class ResultMap {
     private boolean argTypesMatch(final List<String> constructorArgNames,
         Class<?>[] paramTypes, List<String> paramNames) {
       for (int i = 0; i < constructorArgNames.size(); i++) {
-        Class<?> actualType = paramTypes[paramNames.indexOf(constructorArgNames.get(i))];
-        Class<?> specifiedType = resultMap.constructorResultMappings.get(i).getJavaType();
+        Class<?> actualType = paramTypes[paramNames.indexOf(constructorArgNames.get(i))];//构造器中实际的java类型
+        Class<?> specifiedType = resultMap.constructorResultMappings.get(i).getJavaType();//用户编写mapper.xml文件时指定的java类型
         if (!actualType.equals(specifiedType)) {
+          //如果类型不一致则返回匹配失败
           if (log.isDebugEnabled()) {
             log.debug("While building result map '" + resultMap.id
                 + "', found a constructor with arg names " + constructorArgNames
@@ -190,21 +198,27 @@ public class ResultMap {
       final Annotation[][] paramAnnotations = constructor.getParameterAnnotations();
       int paramCount = paramAnnotations.length;
       for (int paramIndex = 0; paramIndex < paramCount; paramIndex++) {
+        // 遍历某个参数
         String name = null;
         for (Annotation annotation : paramAnnotations[paramIndex]) {
+          // 遍历该参数所有的注解
           if (annotation instanceof Param) {
+            // 若注解是Param，则取出value做为参数名
             name = ((Param) annotation).value();
             break;
           }
         }
         if (name == null && resultMap.configuration.isUseActualParamName() && Jdk.parameterExists) {
+          //若没有Param注解，且配置指示可以使用构造器的参数名作为name，且JDK版本允许
           if (actualParamNames == null) {
             actualParamNames = ParamNameUtil.getParamNames(constructor);
           }
           if (actualParamNames.size() > paramIndex) {
+            // 从构造器按索引去获取参数名
             name = actualParamNames.get(paramIndex);
           }
         }
+        //如果最后获取不了，则使用默认命名"arg"+"paramIndex(参数在构造器中的索引)"
         paramNames.add(name != null ? name : "arg" + paramIndex);
       }
       return paramNames;

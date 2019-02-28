@@ -81,7 +81,7 @@ public class FifoCache implements Cache {
 
   private void cycleKeyList(Object key) {
     keyList.addLast(key);
-    if (keyList.size() > size) {
+    if (keyList.size() > size) {//如果超出，则开始清理先进来的key（最老优先清理原则）
       Object oldestKey = keyList.removeFirst();
       delegate.removeObject(oldestKey);
     }

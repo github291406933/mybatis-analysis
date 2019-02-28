@@ -29,6 +29,7 @@ import org.apache.ibatis.scripting.LanguageDriver;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 对应一条sql
  * @author Clinton Begin
  */
 public final class MappedStatement {
@@ -41,7 +42,7 @@ public final class MappedStatement {
   private StatementType statementType;
   private ResultSetType resultSetType;
   private SqlSource sqlSource;
-  private Cache cache;
+  private Cache cache;    // todo 2及缓存的由来
   private ParameterMap parameterMap;
   private List<ResultMap> resultMaps;
   private boolean flushCacheRequired;

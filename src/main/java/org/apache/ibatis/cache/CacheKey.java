@@ -63,6 +63,7 @@ public class CacheKey implements Cloneable, Serializable {
     checksum += baseHashCode;
     baseHashCode *= count;
 
+    //算出updateList的hash值，做唯一标识使用
     hashcode = multiplier * hashcode + baseHashCode;
 
     updateList.add(object);

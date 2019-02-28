@@ -52,6 +52,7 @@ public class ForEachSqlNode implements SqlNode {
   @Override
   public boolean apply(DynamicContext context) {
     Map<String, Object> bindings = context.getBindings();
+    //解析collection属性
     final Iterable<?> iterable = evaluator.evaluateIterable(collectionExpression, bindings);
     if (!iterable.iterator().hasNext()) {
       return true;
@@ -61,22 +62,24 @@ public class ForEachSqlNode implements SqlNode {
     int i = 0;
     for (Object o : iterable) {
       DynamicContext oldContext = context;
+      // 加上分割符，若不为空且不是第一个
       if (first || separator == null) {
         context = new PrefixedContext(context, "");
       } else {
         context = new PrefixedContext(context, separator);
       }
-      int uniqueNumber = context.getUniqueNumber();
+      int uniqueNumber = context.getUniqueNumber();//获取当前遍历到的位置
       // Issue #709 
       if (o instanceof Map.Entry) {
         @SuppressWarnings("unchecked") 
         Map.Entry<Object, Object> mapEntry = (Map.Entry<Object, Object>) o;
-        applyIndex(context, mapEntry.getKey(), uniqueNumber);
-        applyItem(context, mapEntry.getValue(), uniqueNumber);
+        applyIndex(context, mapEntry.getKey(), uniqueNumber);// 将key放入context中，方便使用Ognl查找，并设置${@link #index}=mapEntry.getKey()
+        applyItem(context, mapEntry.getValue(), uniqueNumber); // 将value放入context中，方便使用ognl查找
       } else {
-        applyIndex(context, i, uniqueNumber);
+        applyIndex(context, i, uniqueNumber);//，并设置${@link #index}=i
         applyItem(context, o, uniqueNumber);
       }
+      // 以FilteredDynamicContext为context分析foreach节点的子节点,得到的sql片段类似于 (#{__frch_itm_0,#{__frch_itm_1)
       contents.apply(new FilteredDynamicContext(configuration, context, index, item, uniqueNumber));
       if (first) {
         first = !((PrefixedContext) context).isPrefixApplied();
@@ -92,7 +95,7 @@ public class ForEachSqlNode implements SqlNode {
 
   private void applyIndex(DynamicContext context, Object o, int i) {
     if (index != null) {
-      context.bind(index, o);
+      context.bind(index, o); // index指的是index的名字
       context.bind(itemizeItem(index, i), o);
     }
   }
@@ -116,6 +119,12 @@ public class ForEachSqlNode implements SqlNode {
     }
   }
 
+  /**
+   *
+   * @param item
+   * @param i
+   * @return  __frch_${item}_${i}
+   */
   private static String itemizeItem(String item, int i) {
     return new StringBuilder(ITEM_PREFIX).append(item).append("_").append(i).toString();
   }
@@ -149,6 +158,10 @@ public class ForEachSqlNode implements SqlNode {
       return delegate.getSql();
     }
 
+    /**
+     * 处理foreach的子节点的sql语句，解析出占位符，并转成目标占位符格式
+     * @param sql
+     */
     @Override
     public void appendSql(String sql) {
       GenericTokenParser parser = new GenericTokenParser("#{", "}", new TokenHandler() {
@@ -203,7 +216,7 @@ public class ForEachSqlNode implements SqlNode {
     public void appendSql(String sql) {
       if (!prefixApplied && sql != null && sql.trim().length() > 0) {
         delegate.appendSql(prefix);
-        prefixApplied = true;
+        prefixApplied = true;//标识foreach节点的first属性已经被解析
       }
       delegate.appendSql(sql);
     }

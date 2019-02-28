@@ -63,6 +63,10 @@ public class XMLScriptBuilder extends BaseBuilder {
     nodeHandlerMap.put("bind", new BindHandler());
   }
 
+  /**
+   * 解析context节点
+   * @return
+   */
   public SqlSource parseScriptNode() {
     MixedSqlNode rootSqlNode = parseDynamicTags(context);
     SqlSource sqlSource = null;
@@ -74,26 +78,39 @@ public class XMLScriptBuilder extends BaseBuilder {
     return sqlSource;
   }
 
+  /**
+   * 解析${@code node}
+   * @param node
+   * @return
+   */
   protected MixedSqlNode parseDynamicTags(XNode node) {
     List<SqlNode> contents = new ArrayList<SqlNode>();
     NodeList children = node.getNode().getChildNodes();
     for (int i = 0; i < children.getLength(); i++) {
+      // 遍历Node的孩子节点。对于selectKey节点来说，孩子节点可能为文本节点
       XNode child = node.newXNode(children.item(i));
       if (child.getNode().getNodeType() == Node.CDATA_SECTION_NODE || child.getNode().getNodeType() == Node.TEXT_NODE) {
+        //如果是文本节点，或者CDATA节点
+        //得到文本内容
         String data = child.getStringBody("");
+        //转成TextSqlNode对象，简单的一个对象封装，不复杂
         TextSqlNode textSqlNode = new TextSqlNode(data);
         if (textSqlNode.isDynamic()) {
+          //调用isDynamic方法是，方法会去解析文本，是否存在动态SQL，有的话进行以下If体操作
           contents.add(textSqlNode);
           isDynamic = true;
         } else {
+          //不是动态sql，将封装1个静态的sqlNode
           contents.add(new StaticTextSqlNode(data));
         }
       } else if (child.getNode().getNodeType() == Node.ELEMENT_NODE) { // issue #628
-        String nodeName = child.getNode().getNodeName();
-        NodeHandler handler = nodeHandlerMap.get(nodeName);
+        //若子节点是一个标签，则该节点肯定是一个动态sql
+        String nodeName = child.getNode().getNodeName();//获取子节点的名称
+        NodeHandler handler = nodeHandlerMap.get(nodeName);//只能从约定好的节点名称中获取，如where/foreach/if等
         if (handler == null) {
           throw new BuilderException("Unknown element <" + nodeName + "> in SQL statement.");
         }
+        //进行处理，将解析得到的sqlNode对象放入contents中
         handler.handleNode(child, contents);
         isDynamic = true;
       }

@@ -42,9 +42,9 @@ public class ResultSetWrapper {
 
   private final ResultSet resultSet;
   private final TypeHandlerRegistry typeHandlerRegistry;
-  private final List<String> columnNames = new ArrayList<String>();
-  private final List<String> classNames = new ArrayList<String>();
-  private final List<JdbcType> jdbcTypes = new ArrayList<JdbcType>();
+  private final List<String> columnNames = new ArrayList<String>();//从执行sql返回的结果集中获取得到的所有字段名带有index
+  private final List<String> classNames = new ArrayList<String>(); //字段对应的java类型
+  private final List<JdbcType> jdbcTypes = new ArrayList<JdbcType>();//字段对应的jdbc类型
   private final Map<String, Map<Class<?>, TypeHandler<?>>> typeHandlerMap = new HashMap<String, Map<Class<?>, TypeHandler<?>>>();
   private final Map<String, List<String>> mappedColumnNamesMap = new HashMap<String, List<String>>();
   private final Map<String, List<String>> unMappedColumnNamesMap = new HashMap<String, List<String>>();

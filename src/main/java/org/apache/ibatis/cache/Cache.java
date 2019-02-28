@@ -42,6 +42,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 public interface Cache {
 
   /**
+   * 通常用mapper.xml的namespace作为id
    * @return The identifier of this cache
    */
   String getId();

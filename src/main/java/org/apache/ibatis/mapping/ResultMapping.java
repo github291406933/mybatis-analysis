@@ -31,20 +31,21 @@ import org.apache.ibatis.type.TypeHandlerRegistry;
 public class ResultMapping {
 
   private Configuration configuration;
-  private String property;
-  private String column;
-  private Class<?> javaType;
-  private JdbcType jdbcType;
-  private TypeHandler<?> typeHandler;
-  private String nestedResultMapId;
-  private String nestedQueryId;
-  private Set<String> notNullColumns;
-  private String columnPrefix;
-  private List<ResultFlag> flags;
+  private String property;   //javaType里面对应column的field
+  private String column;    //数据库字段
+  private Class<?> javaType;  //property所属的class
+  private JdbcType jdbcType;    //column对应的jdbc类型，如varchar
+  private TypeHandler<?> typeHandler; //类型处理器
+  private String nestedResultMapId; //关联其他resultMap，关联查询join时会使用到
+  private String nestedQueryId;     // 作用是将select语句中的参数值引入进来
+  private Set<String> notNullColumns; // 对应节点的notNullColumn属性拆分后的结果？
+  private String columnPrefix;      // 对应节点的columnPrefix属性？
+  private List<ResultFlag> flags;   //一个字段可能有多种意义，如t_id可能是构造器的参数，也是作为构造器的id参数。标志只有两个[id/constructor]
+  //对应节点的column属性拆分后生成的结果，composites.size()>0会使得column被设置为null。
   private List<ResultMapping> composites;
-  private String resultSet;
-  private String foreignColumn;
-  private boolean lazy;
+  private String resultSet; //对应resultSet属性
+  private String foreignColumn; //对应节点的foreignColumn属性
+  private boolean lazy; //是否延迟加载
 
   ResultMapping() {
   }
@@ -133,7 +134,7 @@ public class ResultMapping {
     }
     
     public ResultMapping build() {
-      // lock down collections
+      // lock down collections，不可修改
       resultMapping.flags = Collections.unmodifiableList(resultMapping.flags);
       resultMapping.composites = Collections.unmodifiableList(resultMapping.composites);
       resolveTypeHandler();
@@ -141,6 +142,12 @@ public class ResultMapping {
       return resultMapping;
     }
 
+    /**
+     * 校验<reslutMap>提供的数据是否足够
+     * 如：nestedQueryId和nestedResultMapId只能选一个
+     * nestedQueryId、nestedResultMapId、typeHandler不能同时都为Null
+     * nestedResultMapId、column、composites 不能同时都为Null
+     */
     private void validate() {
       // Issue #697: cannot define both nestedQueryId and nestedResultMapId
       if (resultMapping.nestedQueryId != null && resultMapping.nestedResultMapId != null) {
@@ -168,7 +175,10 @@ public class ResultMapping {
         }
       }
     }
-    
+
+    /**
+     * 如果用户没有提供typeHandler，则使用mybatis默认提供的typeHandler，根据javaType和jdbcType去获取
+     */
     private void resolveTypeHandler() {
       if (resultMapping.typeHandler == null && resultMapping.javaType != null) {
         Configuration configuration = resultMapping.configuration;

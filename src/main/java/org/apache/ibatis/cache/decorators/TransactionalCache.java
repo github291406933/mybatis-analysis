@@ -26,6 +26,7 @@ import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 
 /**
+ * 2级缓存-事务型
  * The 2nd level cache transactional buffer.
  * 
  * This class holds all cache entries that are to be added to the 2nd level cache during a Session.
@@ -40,10 +41,10 @@ public class TransactionalCache implements Cache {
 
   private static final Log log = LogFactory.getLog(TransactionalCache.class);
 
-  private final Cache delegate;
-  private boolean clearOnCommit;
-  private final Map<Object, Object> entriesToAddOnCommit;
-  private final Set<Object> entriesMissedInCache;
+  private final Cache delegate; //2即缓存对象
+  private boolean clearOnCommit;  // 为true时，表示当前正在清除2级缓存，缓存不可查询，且提交事务时会清空entriesToAddOnCommit、entriesMissedInCache
+  private final Map<Object, Object> entriesToAddOnCommit; // 待添加到二级缓存的数据
+  private final Set<Object> entriesMissedInCache;   // 未命中缓存的key集合，这里是为了保证在使用blockingCache时，防止锁因特殊异常没有被释放，这里会记录并会主动释放。
 
   public TransactionalCache(Cache delegate) {
     this.delegate = delegate;
@@ -67,10 +68,12 @@ public class TransactionalCache implements Cache {
     // issue #116
     Object object = delegate.getObject(key);
     if (object == null) {
+      // 未命中缓存
       entriesMissedInCache.add(key);
     }
     // issue #146
     if (clearOnCommit) {
+      // 如果该事务已经提交了，默认缓存被清空了，都是返回Null
       return null;
     } else {
       return object;
@@ -84,9 +87,15 @@ public class TransactionalCache implements Cache {
 
   @Override
   public void putObject(Object key, Object object) {
+    // 待添加到缓存中的数据，事务提交时才会将这些数据放到2级缓存中
     entriesToAddOnCommit.put(key, object);
   }
 
+  /**
+   * 不能移除事务的缓存？
+   * @param key The key
+   * @return
+   */
   @Override
   public Object removeObject(Object key) {
     return null;
@@ -117,17 +126,22 @@ public class TransactionalCache implements Cache {
     entriesMissedInCache.clear();
   }
 
+  // 将待添加的数据放到二级缓存中
   private void flushPendingEntries() {
     for (Map.Entry<Object, Object> entry : entriesToAddOnCommit.entrySet()) {
       delegate.putObject(entry.getKey(), entry.getValue());
     }
     for (Object entry : entriesMissedInCache) {
       if (!entriesToAddOnCommit.containsKey(entry)) {
+        // 依旧未命中缓存的的entry也放到2级缓存中占位
         delegate.putObject(entry, null);
       }
     }
   }
 
+  /**
+   * 回退缓存
+   */
   private void unlockMissedEntries() {
     for (Object entry : entriesMissedInCache) {
       try {

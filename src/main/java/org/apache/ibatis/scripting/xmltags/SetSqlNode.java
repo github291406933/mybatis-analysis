@@ -21,6 +21,8 @@ import java.util.List;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 默认去掉最后一个后缀,
+ * 默认添加前缀SET
  * @author Clinton Begin
  */
 public class SetSqlNode extends TrimSqlNode {

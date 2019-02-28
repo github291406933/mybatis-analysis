@@ -175,6 +175,15 @@ public class JavassistProxyFactory implements org.apache.ibatis.executor.loader.
       super(type, unloadedProperties, objectFactory, constructorArgTypes, constructorArgs);
     }
 
+    /**
+     *
+     * @param target
+     * @param unloadedProperties
+     * @param objectFactory
+     * @param constructorArgTypes
+     * @param constructorArgs
+     * @return
+     */
     public static Object createProxy(Object target, Map<String, ResultLoaderMap.LoadPair> unloadedProperties, ObjectFactory objectFactory,
             List<Class<?>> constructorArgTypes, List<Object> constructorArgs) {
       final Class<?> type = target.getClass();

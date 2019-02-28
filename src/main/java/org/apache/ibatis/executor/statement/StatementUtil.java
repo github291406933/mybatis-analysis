@@ -46,8 +46,10 @@ public class StatementUtil {
     }
     Integer timeToLiveOfQuery = null;
     if (queryTimeout == null || queryTimeout == 0) {
+      // 没有查询超时时间时，以事务超时时间配置的为准
       timeToLiveOfQuery = transactionTimeout;
     } else if (transactionTimeout < queryTimeout) {
+      // 如果查询超时时间 大于 事务配置的超时时间，则不修改
       timeToLiveOfQuery = transactionTimeout;
     }
     if (timeToLiveOfQuery != null) {

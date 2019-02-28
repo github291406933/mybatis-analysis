@@ -40,15 +40,15 @@ public abstract class BaseStatementHandler implements StatementHandler {
 
   protected final Configuration configuration;
   protected final ObjectFactory objectFactory;
-  protected final TypeHandlerRegistry typeHandlerRegistry;
-  protected final ResultSetHandler resultSetHandler;
-  protected final ParameterHandler parameterHandler;
+  protected final TypeHandlerRegistry typeHandlerRegistry;  // 拥有所有的javaType 处理器
+  protected final ResultSetHandler resultSetHandler;  // Mybatis的默认唯一实现DefaultResultSetHandler，处理结果集和resultMap，生成结果对象集合
+  protected final ParameterHandler parameterHandler;  // 参数处理器，替换"?"占位符
 
-  protected final Executor executor;
-  protected final MappedStatement mappedStatement;
+  protected final Executor executor;    // 记录执行sql的对象
+  protected final MappedStatement mappedStatement;  // 对应的xml-sql语句标签节点的所有信息
   protected final RowBounds rowBounds;
 
-  protected BoundSql boundSql;
+  protected BoundSql boundSql;  // 主要对应的sql语句信息
 
   protected BaseStatementHandler(Executor executor, MappedStatement mappedStatement, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql) {
     this.configuration = mappedStatement.getConfiguration();
@@ -85,6 +85,7 @@ public abstract class BaseStatementHandler implements StatementHandler {
     ErrorContext.instance().sql(boundSql.getSql());
     Statement statement = null;
     try {
+      // 初始化statement
       statement = instantiateStatement(connection);
       setStatementTimeout(statement, transactionTimeout);
       setFetchSize(statement);
@@ -100,6 +101,14 @@ public abstract class BaseStatementHandler implements StatementHandler {
 
   protected abstract Statement instantiateStatement(Connection connection) throws SQLException;
 
+  /**
+   * 设置超时时间
+   * 优先${@link #mappedStatement}的超时配置
+   * 为null时再取${@link Configuration} 的超时时间配置
+   * @param stmt
+   * @param transactionTimeout
+   * @throws SQLException
+   */
   protected void setStatementTimeout(Statement stmt, Integer transactionTimeout) throws SQLException {
     Integer queryTimeout = null;
     if (mappedStatement.getTimeout() != null) {
@@ -135,6 +144,10 @@ public abstract class BaseStatementHandler implements StatementHandler {
     }
   }
 
+  /**
+   * 主键生成策略
+   * @param parameter
+   */
   protected void generateKeys(Object parameter) {
     KeyGenerator keyGenerator = mappedStatement.getKeyGenerator();
     ErrorContext.instance().store();

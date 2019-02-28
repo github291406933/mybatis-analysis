@@ -90,17 +90,19 @@ public class CacheBuilder {
   }
 
   public Cache build() {
-    setDefaultImplementations();
+    setDefaultImplementations();//设置默认的cache底层实现，和默认的淘汰原则
     Cache cache = newBaseCacheInstance(implementation, id);
-    setCacheProperties(cache);
+    setCacheProperties(cache);//初始化cache在properties中能找到的字段
     // issue #352, do not apply decorators to custom caches
     if (PerpetualCache.class.equals(cache.getClass())) {
+      //若是底层的缓存实现，则还需要按顺序加上所有装饰器
       for (Class<? extends Cache> decorator : decorators) {
         cache = newCacheDecoratorInstance(decorator, cache);
-        setCacheProperties(cache);
+        setCacheProperties(cache);//初始化装饰器的字段
       }
       cache = setStandardDecorators(cache);
     } else if (!LoggingCache.class.isAssignableFrom(cache.getClass())) {
+      //如果是自己实现的缓存底层，且没有加上日志装饰器，则需要为其自动加上日志功能
       cache = new LoggingCache(cache);
     }
     return cache;
@@ -115,6 +117,16 @@ public class CacheBuilder {
     }
   }
 
+  /**
+   * ${@link @cache}加上标准的其他装饰器（其他功能的意思）
+   * 如果clearInterval不为空，则加上定时清除缓存功能
+   * 如果readWrite不为空，则加上序列化保存缓存功能
+   * 一定加上日志功能
+   * 一定加上异步锁操作缓存功能
+   * 如果blocking不为空，则加上阻塞操作缓存的功能
+   * @param cache
+   * @return
+   */
   private Cache setStandardDecorators(Cache cache) {
     try {
       MetaObject metaCache = SystemMetaObject.forObject(cache);
@@ -139,6 +151,10 @@ public class CacheBuilder {
     }
   }
 
+  /**
+   * 将${@link #properties}的key作为field-name在cache中查找有无该字段，有则设置值(set)
+   * @param cache
+   */
   private void setCacheProperties(Cache cache) {
     if (properties != null) {
       MetaObject metaCache = SystemMetaObject.forObject(cache);
@@ -176,6 +192,8 @@ public class CacheBuilder {
         }
       }
     }
+    // 若cache实现了InitializingObject接口，则可以在设置完属性后调用初始化方法。
+    // 目的是在set方法调用完后，利用得到属性进行后续操作
     if (InitializingObject.class.isAssignableFrom(cache.getClass())){
       try {
         ((InitializingObject) cache).initialize();
@@ -186,6 +204,12 @@ public class CacheBuilder {
     }
   }
 
+  /**
+   * 装饰器的实例化
+   * @param cacheClass
+   * @param id      ${@see mapper文件的namespace，即dao层的接口路径}
+   * @return
+   */
   private Cache newBaseCacheInstance(Class<? extends Cache> cacheClass, String id) {
     Constructor<? extends Cache> cacheConstructor = getBaseCacheConstructor(cacheClass);
     try {

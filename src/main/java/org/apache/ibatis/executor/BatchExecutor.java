@@ -36,6 +36,16 @@ import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 
 /**
+ * 多了一个List<Statement>，如果是相同的sql和相同的mappedStatement则认为是相同Statement，不创建新的
+ *
+ * 每次调用doUpdate都会将得到的statement调用addBatch()，意思即将sql添加到statement中,
+ * statement可以放置不同的模式的sql，但PrepareStatement特殊，只能放统一模式的sql，所以就以sql和ms作为key作为依据放置到哪个statement中
+ *
+ * 当调用doFlushStatement方法时，才有可能去批量执行statementList里的所有statement（1个statement有多个sql，而对应的参数放在batchResultList里，通过索引来匹配）
+ *
+ * 这里要注意，当执行doQuery时，这些不会进行批处理。
+ * 同时也要注意，执行前，要先将批处理sql先执行，不然从数据库查出来会查不到之前doUpdate的sql，因为doUpdate只是将sql放到statement的缓存中，并没有执行
+ *
  * @author Jeff Butler 
  */
 public class BatchExecutor extends BaseExecutor {
@@ -59,10 +69,10 @@ public class BatchExecutor extends BaseExecutor {
     final String sql = boundSql.getSql();
     final Statement stmt;
     if (sql.equals(currentSql) && ms.equals(currentStatement)) {
-      int last = statementList.size() - 1;
+      int last = statementList.size() - 1;//最后一个则认为是当前执行的，重复使用
       stmt = statementList.get(last);
       applyTransactionTimeout(stmt);
-     handler.parameterize(stmt);//fix Issues 322
+      handler.parameterize(stmt);//fix Issues 322
       BatchResult batchResult = batchResultList.get(last);
       batchResult.addParameterObject(parameterObject);
     } else {
@@ -107,6 +117,12 @@ public class BatchExecutor extends BaseExecutor {
     return handler.<E>queryCursor(stmt);
   }
 
+  /**
+   * 当调用commit/rollback/doQuery会触发这里
+   * @param isRollback
+   * @return
+   * @throws SQLException
+   */
   @Override
   public List<BatchResult> doFlushStatements(boolean isRollback) throws SQLException {
     try {
@@ -119,7 +135,7 @@ public class BatchExecutor extends BaseExecutor {
         applyTransactionTimeout(stmt);
         BatchResult batchResult = batchResultList.get(i);
         try {
-          batchResult.setUpdateCounts(stmt.executeBatch());
+          batchResult.setUpdateCounts(stmt.executeBatch()); // 执行
           MappedStatement ms = batchResult.getMappedStatement();
           List<Object> parameterObjects = batchResult.getParameterObjects();
           KeyGenerator keyGenerator = ms.getKeyGenerator();

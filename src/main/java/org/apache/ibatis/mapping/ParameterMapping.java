@@ -23,20 +23,21 @@ import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
 /**
+ * 记录了#{} 占位符里的各个参数属性，如#{_frc_item_0, javaType=int, jdbcType=NUMERIC, typeHandler=MyTypeHandler}
  * @author Clinton Begin
  */
 public class ParameterMapping {
 
   private Configuration configuration;
 
-  private String property;
-  private ParameterMode mode;
-  private Class<?> javaType = Object.class;
-  private JdbcType jdbcType;
-  private Integer numericScale;
-  private TypeHandler<?> typeHandler;
-  private String resultMapId;
-  private String jdbcTypeName;
+  private String property;    // 参数名   -> __frch_item_0
+  private ParameterMode mode;   // 输入参数还是输出参数 in/out/INOUT
+  private Class<?> javaType = Object.class; // 参数的JAVA类型  int
+  private JdbcType jdbcType;    // 参数的JDBC类型        NUMERIC
+  private Integer numericScale; // 浮点参数的精度
+  private TypeHandler<?> typeHandler;   // 参数对应的typeHandler处理对象 -> MyTypeHandler
+  private String resultMapId;     // 对应的resultMap id
+  private String jdbcTypeName;    // 参数的jdbcTypeName属性
   private String expression;
 
   private ParameterMapping() {
@@ -122,6 +123,7 @@ public class ParameterMapping {
     }
 
     private void resolveTypeHandler() {
+      // 当用户没有指定typeHandler时，从config中获取对应的typeHandler
       if (parameterMapping.typeHandler == null && parameterMapping.javaType != null) {
         Configuration configuration = parameterMapping.configuration;
         TypeHandlerRegistry typeHandlerRegistry = configuration.getTypeHandlerRegistry();

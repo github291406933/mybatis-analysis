@@ -60,16 +60,17 @@ public class BlockingCache implements Cache {
     try {
       delegate.putObject(key, value);
     } finally {
+      //设置新的缓存，替换旧缓存，之前的锁会被强制释放？（如果是跟加锁线程是同一个，则可以进行释放，如果是同一个，说明现在还未有其他线程在读缓存数据）
       releaseLock(key);
     }
   }
 
   @Override
   public Object getObject(Object key) {
-    acquireLock(key);
+    acquireLock(key);//读缓存时，只允许key对应的缓存被一个线程独显（锁期间）
     Object value = delegate.getObject(key);
     if (value != null) {
-      releaseLock(key);
+      releaseLock(key);//释放锁
     }        
     return value;
   }
@@ -90,17 +91,20 @@ public class BlockingCache implements Cache {
   public ReadWriteLock getReadWriteLock() {
     return null;
   }
-  
+
   private ReentrantLock getLockForKey(Object key) {
     ReentrantLock lock = new ReentrantLock();
+    //locks获取，如果不存在就以Lock新对象，若已经有存在的对象了，则需要以之前的Lock对象返回
     ReentrantLock previous = locks.putIfAbsent(key, lock);
     return previous == null ? lock : previous;
   }
   
   private void acquireLock(Object key) {
+    //这里时拿到重入锁（ReentrantLock）
     Lock lock = getLockForKey(key);
     if (timeout > 0) {
       try {
+        //尝试加锁（获得锁），如果超时，则获取失败，返回false
         boolean acquired = lock.tryLock(timeout, TimeUnit.MILLISECONDS);
         if (!acquired) {
           throw new CacheException("Couldn't get a lock in " + timeout + " for the key " +  key + " at the cache " + delegate.getId());  
@@ -109,13 +113,13 @@ public class BlockingCache implements Cache {
         throw new CacheException("Got interrupted while trying to acquire lock for key " + key, e);
       }
     } else {
-      lock.lock();
+      lock.lock();//会一直等待锁
     }
   }
   
   private void releaseLock(Object key) {
     ReentrantLock lock = locks.get(key);
-    if (lock.isHeldByCurrentThread()) {
+    if (lock.isHeldByCurrentThread()) {//会判断是否原来加锁的线程，是才可以释放
       lock.unlock();
     }
   }

@@ -111,6 +111,7 @@ public class ParamNameResolver {
    * In addition to the default names, this method also adds the generic names (param1, param2,
    * ...).
    * </p>
+   * args 是用户传进来的实际参数 - 返回实参与参数名对应的集合
    */
   public Object getNamedParams(Object[] args) {
     final int paramCount = names.size();

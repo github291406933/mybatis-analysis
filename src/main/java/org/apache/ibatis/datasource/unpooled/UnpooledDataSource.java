@@ -187,6 +187,7 @@ public class UnpooledDataSource implements DataSource {
     if (driverProperties != null) {
       props.putAll(driverProperties);
     }
+    //Driver 驱动jar包声明过，至少属性实体里要包含user、password这两个值
     if (username != null) {
       props.setProperty("user", username);
     }

@@ -32,6 +32,7 @@ import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 
 /**
+ * 不能存在占位符
  * @author Clinton Begin
  */
 public class SimpleStatementHandler extends BaseStatementHandler {
@@ -42,16 +43,22 @@ public class SimpleStatementHandler extends BaseStatementHandler {
 
   @Override
   public int update(Statement statement) throws SQLException {
+    // 未执行的sql
     String sql = boundSql.getSql();
+    // 用户参数
     Object parameterObject = boundSql.getParameterObject();
+    // 主键生成策略，从mappedStatement配置决定
     KeyGenerator keyGenerator = mappedStatement.getKeyGenerator();
     int rows;
     if (keyGenerator instanceof Jdbc3KeyGenerator) {
+      // 在插入sql后获取主键值
       statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
+      // 返回数量
       rows = statement.getUpdateCount();
+      // statement带有主键值结果集statement.getGeneratedKeys()
       keyGenerator.processAfter(executor, mappedStatement, statement, parameterObject);
     } else if (keyGenerator instanceof SelectKeyGenerator) {
-      statement.execute(sql);
+      statement.execute(sql);//这里有区别
       rows = statement.getUpdateCount();
       keyGenerator.processAfter(executor, mappedStatement, statement, parameterObject);
     } else {

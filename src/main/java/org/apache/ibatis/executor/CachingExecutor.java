@@ -33,6 +33,7 @@ import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 
 /**
+ * 装饰了Executor，为Executor提供了2级缓存功能
  * @author Clinton Begin
  * @author Eduardo Macarron
  */
@@ -89,23 +90,39 @@ public class CachingExecutor implements Executor {
     return delegate.queryCursor(ms, parameter, rowBounds);
   }
 
+  /**
+   * 先从
+   * @param ms
+   * @param parameterObject
+   * @param rowBounds
+   * @param resultHandler
+   * @param key
+   * @param boundSql
+   * @param <E>
+   * @return
+   * @throws SQLException
+   */
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)
       throws SQLException {
-    Cache cache = ms.getCache();
+    Cache cache = ms.getCache();  // 拿到二级缓存？
     if (cache != null) {
       flushCacheIfRequired(ms);
       if (ms.isUseCache() && resultHandler == null) {
-        ensureNoOutParams(ms, boundSql);
+        // ms 配置了使用2级缓存，则先从2级缓存获取
+        ensureNoOutParams(ms, boundSql);// 确保不是存储过程的sql，不然会报错
         @SuppressWarnings("unchecked")
         List<E> list = (List<E>) tcm.getObject(cache, key);
         if (list == null) {
+          // 2级缓存未命中，则交给delegate（默认带有1级缓存${@link BaseExecutor}）去查询
           list = delegate.<E> query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
+          // 放到2级缓存中，此时未真正放到2级缓存中，正确来说是放到transactionCache的待添加集合里，待电泳tcm.commit后才会放到2及缓存中
           tcm.putObject(cache, key, list); // issue #578 and #116
         }
         return list;
       }
     }
+    // 没有开启2级缓存，
     return delegate.<E> query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 
@@ -114,6 +131,11 @@ public class CachingExecutor implements Executor {
     return delegate.flushStatements();
   }
 
+  /**
+   * 提交事务的时候顺便将2级缓存给刷新
+   * @param required
+   * @throws SQLException
+   */
   @Override
   public void commit(boolean required) throws SQLException {
     delegate.commit(required);
@@ -161,6 +183,11 @@ public class CachingExecutor implements Executor {
     delegate.clearLocalCache();
   }
 
+  /**
+   * 判断ms 有没有开启flushCache
+   * 清掉对应的2级缓存
+   * @param ms
+   */
   private void flushCacheIfRequired(MappedStatement ms) {
     Cache cache = ms.getCache();
     if (cache != null && ms.isFlushCacheRequired()) {      

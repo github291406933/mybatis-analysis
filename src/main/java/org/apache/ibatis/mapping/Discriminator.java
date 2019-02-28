@@ -21,6 +21,14 @@ import java.util.Map;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 针对鉴别标签使用，
+ *      <discriminator javaType="int" column="sex">
+ * 			<case value="1" resultMap="maleEmployeeMap" />
+ * 			<case value="2" resultMap="femaleEmployeeMap" />
+ * 		</discriminator>
+ * ${@link #resultMapping}	表示当前discriminator标签对应的resultMapping
+ * ${@link #discriminatorMap} key:case中的value属性值(如1),value:resultMapId(如：maleEmployeeMap）
+ * 通过discriminatorMap，可以根据resultMapId获取到对应的resultMap
  * @author Clinton Begin
  */
 public class Discriminator {

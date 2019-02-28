@@ -22,11 +22,14 @@
 
 <mapper namespace="org.apache.ibatis.domain.blog.mappers.AuthorMapper">
 
+	<cache blocking="true" eviction=""></cache>
+	<cache-ref namespace="org.apache.ibatis.domain.blog.mappers.AuthorMapper"></cache-ref>
+
 	<parameterMap id="selectAuthor" type="org.apache.ibatis.domain.blog.Author">
 		<parameter property="id" />
 	</parameterMap>
 
-	<resultMap id="selectAuthor" type="org.apache.ibatis.domain.blog.Author">
+	<resultMap id="selectAuthor" type="org.apache.ibatis.domain.blog.Author" >
 		<id column="id" property="id" />
 		<result property="username" column="username" />
 		<result property="password" column="password" />
@@ -37,7 +40,7 @@
 
 	<resultMap id="selectImmutableAuthor" type="org.apache.ibatis.domain.blog.ImmutableAuthor">
 		<constructor>
-			<idArg column="id" javaType="_int" />
+			<idArg  column="id" javaType="_int" />
 			<arg column="username" javaType="string" />
 			<arg column="password" javaType="string" />
 			<arg column="email" javaType="string" />
@@ -64,7 +67,7 @@
 		</constructor>
 	</resultMap>
 
-	<select id="selectAllAuthors" resultType="org.apache.ibatis.domain.blog.Author">
+	<select databaseId="mysql" id="selectAllAuthors" resultType="org.apache.ibatis.domain.blog.Author">
 		select * from author
 	</select>
 

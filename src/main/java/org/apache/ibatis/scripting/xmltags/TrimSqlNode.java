@@ -25,12 +25,13 @@ import java.util.StringTokenizer;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * <trim>节点
  * @author Clinton Begin
  */
 public class TrimSqlNode implements SqlNode {
 
   private final SqlNode contents;
-  private final String prefix;
+  private final String prefix;  // 当<trim> 包裹
   private final String suffix;
   private final List<String> prefixesToOverride;
   private final List<String> suffixesToOverride;
@@ -52,7 +53,9 @@ public class TrimSqlNode implements SqlNode {
   @Override
   public boolean apply(DynamicContext context) {
     FilteredDynamicContext filteredDynamicContext = new FilteredDynamicContext(context);
+    // filteredDynamicContext代理了context，用filteredDynamicContext来获取被trim节点包裹的sql语句，进行拦截判断后再赋值给context
     boolean result = contents.apply(filteredDynamicContext);
+    // 运行自己的业务判断
     filteredDynamicContext.applyAll();
     return result;
   }
@@ -69,11 +72,15 @@ public class TrimSqlNode implements SqlNode {
     return Collections.emptyList();
   }
 
+  /**
+   * 为了只获取处理trim节点包裹的sql的语句，相当于代理了DynamicContext的方法
+   * 先运行自己的逻辑后，再根据sqlBuffer是否为空进行前缀后缀的处理
+   */
   private class FilteredDynamicContext extends DynamicContext {
     private DynamicContext delegate;
     private boolean prefixApplied;
     private boolean suffixApplied;
-    private StringBuilder sqlBuffer;
+    private StringBuilder sqlBuffer;//相对于 DynamicContext中的sqlBuilder
 
     public FilteredDynamicContext(DynamicContext delegate) {
       super(configuration, null);
@@ -90,6 +97,7 @@ public class TrimSqlNode implements SqlNode {
         applyPrefix(sqlBuffer, trimmedUppercaseSql);
         applySuffix(sqlBuffer, trimmedUppercaseSql);
       }
+      // delegate 是原来上一层的context，这个FilteredDynamicContext 处理完trimSqlNode节点后就把数据交给原来的context，自己退出
       delegate.appendSql(sqlBuffer.toString());
     }
 
@@ -122,6 +130,7 @@ public class TrimSqlNode implements SqlNode {
       if (!prefixApplied) {
         prefixApplied = true;
         if (prefixesToOverride != null) {
+          // 只覆盖prefixesToOverride 其中一个元素就结束，如 and|or 如果遇到and就结束
           for (String toRemove : prefixesToOverride) {
             if (trimmedUppercaseSql.startsWith(toRemove)) {
               sql.delete(0, toRemove.trim().length());

@@ -19,6 +19,12 @@ package org.apache.ibatis.parsing;
  * @author Clinton Begin
  */
 public interface TokenHandler {
+  /**
+   *  对传进来的content进行处理后返回新的占位符，或者值。
+   *  一般content不会包括#{},这样的open/close token
+   * @param content
+   * @return
+   */
   String handleToken(String content);
 }
 

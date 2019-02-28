@@ -841,6 +841,10 @@ public class Configuration {
     }
   }
 
+  /**
+   * 继承hashMap，增加多了一个name字段。用来标识map的存放数据的类型。
+   * @param <V>
+   */
   protected static class StrictMap<V> extends HashMap<String, V> {
 
     private static final long serialVersionUID = -4950446264854982944L;
@@ -869,13 +873,18 @@ public class Configuration {
     @SuppressWarnings("unchecked")
     public V put(String key, V value) {
       if (containsKey(key)) {
+        //若已经存在了，则直接抛异常
         throw new IllegalArgumentException(name + " already contains value for " + key);
       }
       if (key.contains(".")) {
+        //若存在引用关系的，则取最后一串作为key
         final String shortKey = getShortName(key);
         if (super.get(shortKey) == null) {
+          //若shortKey原先不存在，则直接放入
           super.put(shortKey, value);
         } else {
+          //若已经有值在map中了，则需要将key分装成value替换掉原来的value，why?
+          //让外部知道有个shortKey重复？ -> 在调用get方法时，如果value是Ambiguity类型的则抛异常
           super.put(shortKey, (V) new Ambiguity(shortKey));
         }
       }

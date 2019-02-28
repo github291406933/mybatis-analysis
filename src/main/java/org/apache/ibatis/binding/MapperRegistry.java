@@ -57,6 +57,11 @@ public class MapperRegistry {
     return knownMappers.containsKey(type);
   }
 
+  /**
+   * 相当于添加和解析Mapper接口
+   * @param type
+   * @param <T>
+   */
   public <T> void addMapper(Class<T> type) {
     if (type.isInterface()) {
       if (hasMapper(type)) {

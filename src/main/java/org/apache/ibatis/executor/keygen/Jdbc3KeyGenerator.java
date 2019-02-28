@@ -36,6 +36,7 @@ import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
 /**
+ * sql语句执行后再获取主键值
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */

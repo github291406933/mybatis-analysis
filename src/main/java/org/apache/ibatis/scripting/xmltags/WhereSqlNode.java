@@ -21,6 +21,8 @@ import java.util.List;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 封装了trim节点处理的功能
+ * 默认了前缀，和prefixOverride
  * @author Clinton Begin
  */
 public class WhereSqlNode extends TrimSqlNode {

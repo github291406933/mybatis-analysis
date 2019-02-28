@@ -151,10 +151,17 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * <typeAliases>标签下内容的解析
+   * package和typeAlias只能选一种
+   * 目的是为完整的类路径定义一个别名，方便使用和修改
+   * @param parent
+   */
   private void typeAliasesElement(XNode parent) {
     if (parent != null) {
       for (XNode child : parent.getChildren()) {
         if ("package".equals(child.getName())) {
+          //注解扫描--指定包
           String typeAliasPackage = child.getStringAttribute("name");
           configuration.getTypeAliasRegistry().registerAliases(typeAliasPackage);
         } else {
@@ -175,6 +182,13 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * <plugins>标签下内容的解析
+   * 找到用户定义实现的拦截器
+   * 目的是为了拦截sql语句的执行过程，进行sql一系列的修改等扩展
+   * @param parent
+   * @throws Exception
+   */
   private void pluginElement(XNode parent) throws Exception {
     if (parent != null) {
       for (XNode child : parent.getChildren()) {
@@ -187,6 +201,12 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * 用户可以自己实现自己的ObjectFactory接口
+   * 接口功能是为了提供给Mybatis在已知Class Type和构造参数如何反射生成一个对象
+   * @param context
+   * @throws Exception
+   */
   private void objectFactoryElement(XNode context) throws Exception {
     if (context != null) {
       String type = context.getStringAttribute("type");
@@ -276,6 +296,9 @@ public class XMLConfigBuilder extends BaseBuilder {
       for (XNode child : context.getChildren()) {
         String id = child.getStringAttribute("id");
         if (isSpecifiedEnvironment(id)) {
+          // id 和 <environments>的default属性一致的情况下。
+          // 即${@link #environmentsElement(...)}方法只加载${@link #environment}指定的环境配置
+          // 不需要全部都加载进来
           TransactionFactory txFactory = transactionManagerElement(child.evalNode("transactionManager"));
           DataSourceFactory dsFactory = dataSourceElement(child.evalNode("dataSource"));
           DataSource dataSource = dsFactory.getDataSource();
@@ -288,6 +311,15 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * 用于区别不同数据库下的执行语句。databaseId用来做key，在Mapper文件中
+   * 1、如果有带上databaseId则优先使用该sql语句,如：
+   *    <select databaseId="mysql" id="selectAllAuthors" resultType="org.apache.ibatis.domain.blog.Author">
+   * 		select * from author
+   * 	</select>
+   * @param context
+   * @throws Exception
+   */
   private void databaseIdProviderElement(XNode context) throws Exception {
     DatabaseIdProvider databaseIdProvider = null;
     if (context != null) {

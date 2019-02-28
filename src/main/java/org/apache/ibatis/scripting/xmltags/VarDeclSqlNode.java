@@ -16,6 +16,8 @@
 package org.apache.ibatis.scripting.xmltags;
 
 /**
+ * 只是绑定一个key-value到context变量池中
+ * 对应<bind>节点
  * @author Frank D. Martinez [mnesarco]
  */
 public class VarDeclSqlNode implements SqlNode {

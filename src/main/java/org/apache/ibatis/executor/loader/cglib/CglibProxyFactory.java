@@ -102,7 +102,7 @@ public class CglibProxyFactory implements ProxyFactory {
     private final Class<?> type;
     private final ResultLoaderMap lazyLoader;
     private final boolean aggressive;
-    private final Set<String> lazyLoadTriggerMethods;
+    private final Set<String> lazyLoadTriggerMethods; // 所有懒加载触发的方法名
     private final ObjectFactory objectFactory;
     private final List<Class<?>> constructorArgTypes;
     private final List<Object> constructorArgs;
@@ -117,6 +117,16 @@ public class CglibProxyFactory implements ProxyFactory {
       this.constructorArgs = constructorArgs;
     }
 
+    /**
+     *  生成代理对象，并初始化懒加载所需要的信息
+     * @param target        代理的目标对象
+     * @param lazyLoader    放置resultMap（含有某一个属性的懒加载全部信息）的缓存
+     * @param configuration   Mybatis全局配置
+     * @param objectFactory   对象工厂，用来根据类反射生成对象
+     * @param constructorArgTypes 构造参数类型
+     * @param constructorArgs 构造参数
+     * @return
+     */
     public static Object createProxy(Object target, ResultLoaderMap lazyLoader, Configuration configuration, ObjectFactory objectFactory, List<Class<?>> constructorArgTypes, List<Object> constructorArgs) {
       final Class<?> type = target.getClass();
       EnhancedResultObjectProxyImpl callback = new EnhancedResultObjectProxyImpl(type, lazyLoader, configuration, objectFactory, constructorArgTypes, constructorArgs);
@@ -131,6 +141,7 @@ public class CglibProxyFactory implements ProxyFactory {
       try {
         synchronized (lazyLoader) {
           if (WRITE_REPLACE_METHOD.equals(methodName)) {
+            // 这个会重新生成新的懒加载后的结果对象，如果是遇到WRITE_REPLACE_METHOD方法
             Object original;
             if (constructorArgTypes.isEmpty()) {
               original = objectFactory.create(type);
@@ -144,13 +155,16 @@ public class CglibProxyFactory implements ProxyFactory {
               return original;
             }
           } else {
+            // 不能代理finalize方法，因为该方法是被GC所使用
             if (lazyLoader.size() > 0 && !FINALIZE_METHOD.equals(methodName)) {
               if (aggressive || lazyLoadTriggerMethods.contains(methodName)) {
                 lazyLoader.loadAll();
               } else if (PropertyNamer.isSetter(methodName)) {
+                // 如果调用了set方法，则懒加载会消除掉
                 final String property = PropertyNamer.methodToProperty(methodName);
                 lazyLoader.remove(property);
               } else if (PropertyNamer.isGetter(methodName)) {
+                // 如果是get方法，则可以针对单个属性进行懒加载
                 final String property = PropertyNamer.methodToProperty(methodName);
                 if (lazyLoader.hasLoader(property)) {
                   lazyLoader.load(property);

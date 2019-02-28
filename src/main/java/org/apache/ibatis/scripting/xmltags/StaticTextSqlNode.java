@@ -16,6 +16,7 @@
 package org.apache.ibatis.scripting.xmltags;
 
 /**
+ * 完整的sql，不会存在某些占位符
  * @author Clinton Begin
  */
 public class StaticTextSqlNode implements SqlNode {

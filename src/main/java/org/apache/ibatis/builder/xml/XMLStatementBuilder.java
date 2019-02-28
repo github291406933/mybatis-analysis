@@ -84,6 +84,7 @@ public class XMLStatementBuilder extends BaseBuilder {
     boolean resultOrdered = context.getBooleanAttribute("resultOrdered", false);
 
     // Include Fragments before parsing
+    // 处理好所有include节点
     XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
     includeParser.applyIncludes(context.getNode());
 
@@ -112,6 +113,13 @@ public class XMLStatementBuilder extends BaseBuilder {
         keyGenerator, keyProperty, keyColumn, databaseId, langDriver, resultSets);
   }
 
+  /**
+   * 处理所有selectKey节点
+   * selectKey节点通常用来处理insert update语句返回的id自增值
+   * @param id
+   * @param parameterTypeClass
+   * @param langDriver
+   */
   private void processSelectKeyNodes(String id, Class<?> parameterTypeClass, LanguageDriver langDriver) {
     List<XNode> selectKeyNodes = context.evalNodes("selectKey");
     if (configuration.getDatabaseId() != null) {
@@ -126,11 +134,20 @@ public class XMLStatementBuilder extends BaseBuilder {
       String id = parentId + SelectKeyGenerator.SELECT_KEY_SUFFIX;
       String databaseId = nodeToHandle.getStringAttribute("databaseId");
       if (databaseIdMatchesCurrent(id, databaseId, skRequiredDatabaseId)) {
+        // databaseId 判断匹配上，才会解析
         parseSelectKeyNode(id, nodeToHandle, parameterTypeClass, langDriver, databaseId);
       }
     }
   }
 
+  /**
+   *
+   * @param id                    selectKey的节点ID,${sql节点ID}+${@link SelectKeyGenerator.SELECT_KEY_SUFFIX}
+   * @param nodeToHandle          当前selectKey节点
+   * @param parameterTypeClass    如果有指定parameterType属性的话，获取对应Class
+   * @param langDriver
+   * @param databaseId            用来跟configuration的databaseId进行匹配判断，如果不一致则不加载，都为Null时，根据id判断之前加载过sql有无databaseId，有则不加载
+   */
   private void parseSelectKeyNode(String id, XNode nodeToHandle, Class<?> parameterTypeClass, LanguageDriver langDriver, String databaseId) {
     String resultType = nodeToHandle.getStringAttribute("resultType");
     Class<?> resultTypeClass = resolveClass(resultType);
@@ -170,6 +187,15 @@ public class XMLStatementBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * databaseId == requiredDatabaseId return true
+   *  如果之前加载过${@see id}已经被加载过 && ${@see preivous}的databaseId为null -> return
+   *  其他return false
+   * @param id
+   * @param databaseId
+   * @param requiredDatabaseId
+   * @return
+   */
   private boolean databaseIdMatchesCurrent(String id, String databaseId, String requiredDatabaseId) {
     if (requiredDatabaseId != null) {
       if (!requiredDatabaseId.equals(databaseId)) {
@@ -182,6 +208,7 @@ public class XMLStatementBuilder extends BaseBuilder {
       // skip this statement if there is a previous one with a not null databaseId
       id = builderAssistant.applyCurrentNamespace(id, false);
       if (this.configuration.hasStatement(id, false)) {
+        //判断是否加载过这个id了
         MappedStatement previous = this.configuration.getMappedStatement(id, false); // issue #2
         if (previous.getDatabaseId() != null) {
           return false;

@@ -39,6 +39,13 @@ public class ExpressionEvaluator {
     return value != null;
   }
 
+    /**
+     * 返回expression对应的值（集合）
+     * 若是数组会被转换成List
+     * @param expression
+     * @param parameterObject
+     * @return
+     */
   public Iterable<?> evaluateIterable(String expression, Object parameterObject) {
     Object value = OgnlCache.getValue(expression, parameterObject);
     if (value == null) {

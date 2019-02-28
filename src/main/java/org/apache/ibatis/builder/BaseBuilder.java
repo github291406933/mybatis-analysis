@@ -108,6 +108,12 @@ public abstract class BaseBuilder {
     }
   }
 
+  /**
+   * 获取别名所对应的class，如果在alias缓存里找不到
+   * 则以${@see alias}为完整的类名路径去利用${@link org.apache.ibatis.io.Resources}去加载对应资源，并转成class
+   * @param alias
+   * @return
+   */
   protected Class<?> resolveClass(String alias) {
     if (alias == null) {
       return null;

@@ -45,6 +45,9 @@ import org.apache.ibatis.transaction.Transaction;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
 /**
+ * 模板方法模式中作为抽象类，定义了步骤的执行顺序、固定的步骤的方法实现
+ * 业务上提供了缓存管理和事务管理的基本功能
+ * 只要继承该类并实现doQuery/doQueryCursor/doFlushStatement/doUpdate方法即可
  * @author Clinton Begin
  */
 public abstract class BaseExecutor implements Executor {
@@ -107,21 +110,42 @@ public abstract class BaseExecutor implements Executor {
     return closed;
   }
 
+  /**
+   * Insert/update/delete 都会调用该方法
+   * @param ms
+   * @param parameter
+   * @return
+   * @throws SQLException
+   */
   @Override
   public int update(MappedStatement ms, Object parameter) throws SQLException {
     ErrorContext.instance().resource(ms.getResource()).activity("executing an update").object(ms.getId());
     if (closed) {
       throw new ExecutorException("Executor was closed.");
     }
+    // 为啥子要清缓存
+    // -> 因为执行更新后数据库的数据有可能不一致了，这时候就需要令缓存失效。
     clearLocalCache();
     return doUpdate(ms, parameter);
   }
 
+  /**
+   * 针对批处理多条sql语句一并发送到数据库中心
+   * 该方法会被commit/rollback 调用
+   * @return
+   * @throws SQLException
+   */
   @Override
   public List<BatchResult> flushStatements() throws SQLException {
     return flushStatements(false);
   }
 
+  /**
+   *
+   * @param isRollBack  是否执行缓存中的sql语句，false表示执行
+   * @return
+   * @throws SQLException
+   */
   public List<BatchResult> flushStatements(boolean isRollBack) throws SQLException {
     if (closed) {
       throw new ExecutorException("Executor was closed.");
@@ -144,25 +168,31 @@ public abstract class BaseExecutor implements Executor {
       throw new ExecutorException("Executor was closed.");
     }
     if (queryStack == 0 && ms.isFlushCacheRequired()) {
+      // 非嵌套查询且select节点配置的flushCache为true时才会清空缓存
       clearLocalCache();
     }
     List<E> list;
     try {
-      queryStack++;
+      queryStack++;// 增加查询成熟
+      // 查询1级缓存
       list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
       if (list != null) {
+        // 针对存储过程调用的处理，在命中一级缓存时，获取缓存中保存的输出类型参数。将缓存写到parameter参数对象中
         handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
       } else {
+        // 查询数据库，这部分交由子类实现
         list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
       }
     } finally {
+      // 查询完成，查询层数减1
       queryStack--;
     }
     if (queryStack == 0) {
+      // 查询完成，嵌套查询也会完成，进行延迟加载的属性缓存检查，如果有了缓存则将该值放置到最外层对象中
       for (DeferredLoad deferredLoad : deferredLoads) {
         deferredLoad.load();
       }
-      // issue #601
+      // issue #601，清空延迟加载
       deferredLoads.clear();
       if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
         // issue #482
@@ -172,6 +202,15 @@ public abstract class BaseExecutor implements Executor {
     return list;
   }
 
+  /**
+   * 游标查询不会使用1级缓存
+   * @param ms
+   * @param parameter
+   * @param rowBounds
+   * @param <E>
+   * @return
+   * @throws SQLException
+   */
   @Override
   public <E> Cursor<E> queryCursor(MappedStatement ms, Object parameter, RowBounds rowBounds) throws SQLException {
     BoundSql boundSql = ms.getBoundSql(parameter);
@@ -238,19 +277,28 @@ public abstract class BaseExecutor implements Executor {
     if (closed) {
       throw new ExecutorException("Cannot commit, transaction is already closed");
     }
+    // 清空1级缓存
     clearLocalCache();
-    flushStatements();
+    flushStatements();  // 执行缓存中的sql语句
     if (required) {
+      // 是否提交事务
       transaction.commit();
     }
   }
 
+  /**
+   * 清空1级缓存
+   * 刷新sql但不执行缓存中的sql
+   *
+   * @param required  true 回滚事务
+   * @throws SQLException
+   */
   @Override
   public void rollback(boolean required) throws SQLException {
     if (!closed) {
       try {
         clearLocalCache();
-        flushStatements(true);
+        flushStatements(true);  // 不执行缓存的sql，都要回滚了，执行了也没用
       } finally {
         if (required) {
           transaction.rollback();
@@ -293,6 +341,7 @@ public abstract class BaseExecutor implements Executor {
 
   /**
    * Apply a transaction timeout.
+   * 重新设置事务超时时间，如果 statement 的查询超时时间超过事务超时时间则不修改。
    * @param statement a current statement
    * @throws SQLException if a database access error occurs, this method is called on a closed <code>Statement</code>
    * @since 3.4.0
@@ -309,9 +358,12 @@ public abstract class BaseExecutor implements Executor {
         final MetaObject metaCachedParameter = configuration.newMetaObject(cachedParameter);
         final MetaObject metaParameter = configuration.newMetaObject(parameter);
         for (ParameterMapping parameterMapping : boundSql.getParameterMappings()) {
+          // 遍历#{} 占位符信息
           if (parameterMapping.getMode() != ParameterMode.IN) {
+            // 存储过程的输出参数
             final String parameterName = parameterMapping.getProperty();
             final Object cachedValue = metaCachedParameter.getValue(parameterName);
+            // 将localOutputParameterCache中符合的缓存放到parameter输出参数中
             metaParameter.setValue(parameterName, cachedValue);
           }
         }
@@ -350,13 +402,13 @@ public abstract class BaseExecutor implements Executor {
   
   private static class DeferredLoad {
 
-    private final MetaObject resultObject;
-    private final String property;
-    private final Class<?> targetType;
-    private final CacheKey key;
-    private final PerpetualCache localCache;
-    private final ObjectFactory objectFactory;
-    private final ResultExtractor resultExtractor;
+    private final MetaObject resultObject;    // 最外层对象
+    private final String property;          // 对应resultObject的属性名
+    private final Class<?> targetType;    // 属性对应的java类
+    private final CacheKey key;             // 在localCache中的缓存Key
+    private final PerpetualCache localCache;    // 跟executor里的localCache用的是同一个缓存
+    private final ObjectFactory objectFactory;    //
+    private final ResultExtractor resultExtractor;  // 将结果对象的类型转换
 
     // issue #781
     public DeferredLoad(MetaObject resultObject,
@@ -374,6 +426,10 @@ public abstract class BaseExecutor implements Executor {
       this.targetType = targetType;
     }
 
+    /**
+     * 判断localCache已经有了真正缓存，而不是占位符缓存
+     * @return
+     */
     public boolean canLoad() {
       return localCache.getObject(key) != null && localCache.getObject(key) != EXECUTION_PLACEHOLDER;
     }
@@ -382,6 +438,7 @@ public abstract class BaseExecutor implements Executor {
       @SuppressWarnings( "unchecked" )
       // we suppose we get back a List
       List<Object> list = (List<Object>) localCache.getObject(key);
+      // 转成targetType目标类型
       Object value = resultExtractor.extractObjectFromList(list, targetType);
       resultObject.setValue(property, value);
     }

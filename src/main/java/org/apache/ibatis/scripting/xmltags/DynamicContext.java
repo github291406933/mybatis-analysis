@@ -42,14 +42,19 @@ public class DynamicContext {
   private final StringBuilder sqlBuilder = new StringBuilder();
   private int uniqueNumber = 0;
 
+  /**
+   *
+   * @param configuration
+   * @param parameterObject 客户执行sql时传入的参数
+   */
   public DynamicContext(Configuration configuration, Object parameterObject) {
     if (parameterObject != null && !(parameterObject instanceof Map)) {
       MetaObject metaObject = configuration.newMetaObject(parameterObject);
-      bindings = new ContextMap(metaObject);
+      bindings = new ContextMap(metaObject);// 当从ContextMap中的缓存拿不到值时，会从metaObject中获取
     } else {
       bindings = new ContextMap(null);
     }
-    bindings.put(PARAMETER_OBJECT_KEY, parameterObject);
+    bindings.put(PARAMETER_OBJECT_KEY, parameterObject);  // 当做一个KEY，方便之后需要获取完整的客户执行SQL时传入的参数
     bindings.put(DATABASE_ID_KEY, configuration.getDatabaseId());
   }
 

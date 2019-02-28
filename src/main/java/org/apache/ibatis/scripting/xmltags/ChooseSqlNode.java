@@ -21,8 +21,8 @@ import java.util.List;
  * @author Clinton Begin
  */
 public class ChooseSqlNode implements SqlNode {
-  private final SqlNode defaultSqlNode;
-  private final List<SqlNode> ifSqlNodes;
+  private final SqlNode defaultSqlNode; // 指定的otherwise标签
+  private final List<SqlNode> ifSqlNodes;// 指的是when标签
 
   public ChooseSqlNode(List<SqlNode> ifSqlNodes, SqlNode defaultSqlNode) {
     this.ifSqlNodes = ifSqlNodes;
@@ -33,6 +33,7 @@ public class ChooseSqlNode implements SqlNode {
   public boolean apply(DynamicContext context) {
     for (SqlNode sqlNode : ifSqlNodes) {
       if (sqlNode.apply(context)) {
+        //只要成功解析一个，并when的test条件为真时，退出循环。
         return true;
       }
     }

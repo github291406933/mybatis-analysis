@@ -28,7 +28,7 @@ import org.apache.ibatis.session.Configuration;
 public class DynamicSqlSource implements SqlSource {
 
   private final Configuration configuration;
-  private final SqlNode rootSqlNode;
+  private final SqlNode rootSqlNode;// 包含了所有sql未解析的标签
 
   public DynamicSqlSource(Configuration configuration, SqlNode rootSqlNode) {
     this.configuration = configuration;
@@ -38,7 +38,7 @@ public class DynamicSqlSource implements SqlSource {
   @Override
   public BoundSql getBoundSql(Object parameterObject) {
     DynamicContext context = new DynamicContext(configuration, parameterObject);
-    rootSqlNode.apply(context);
+    rootSqlNode.apply(context);// 会以全局配置和客户执行sql提交的参数为上下文进行解析sql标签
     SqlSourceBuilder sqlSourceParser = new SqlSourceBuilder(configuration);
     Class<?> parameterType = parameterObject == null ? Object.class : parameterObject.getClass();
     SqlSource sqlSource = sqlSourceParser.parse(context.getSql(), parameterType, context.getBindings());

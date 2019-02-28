@@ -106,7 +106,7 @@ public class TypeParameterResolver {
       } else if (typeArgs[i] instanceof WildcardType) {
         args[i] = resolveWildcardType((WildcardType) typeArgs[i], srcType, declaringClass);
       } else {
-        args[i] = typeArgs[i];
+        args[i] = typeArgs[i];//剩下就时class,数组类型
       }
     }
     return new ParameterizedTypeImpl(rawType, null, args);

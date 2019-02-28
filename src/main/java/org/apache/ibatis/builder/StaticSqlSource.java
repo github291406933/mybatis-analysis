@@ -23,6 +23,7 @@ import org.apache.ibatis.mapping.SqlSource;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 静态sql，没有类似于#{}占位符，也不用解析标签
  * @author Clinton Begin
  */
 public class StaticSqlSource implements SqlSource {
